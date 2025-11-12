@@ -10,7 +10,7 @@ const LandingPage = () => {
   return (
     <div className='bg-red-50 text-gray-600'>
       <Header/>
-      <main className='mb-[100vh]'>
+      <main>
         <Hero/>
         <Features/>
         <Testimonials/>
