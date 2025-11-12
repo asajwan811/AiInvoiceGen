@@ -25,6 +25,16 @@ connectDB();
 // Middleware
 app.use(express.json());
 
+// Use this simple version - no database dependency
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 //routes here
 app.use("/api/auth", authRoutes);
 app.use("/api/invoices", invoiceRoutes);
