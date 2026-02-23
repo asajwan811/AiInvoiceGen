@@ -32,25 +32,23 @@ const parseInvoiceFromText = async (req, res) => {
         extract the data and provide only the json object.
         `;
 
-        const response = await ai.models.generateContent({
-            model: "models/gemini-2.0-flash-001",
-            contents: prompt,
-        });
-        const responseText= response.text;
-        if(typeof responseText !=='string')
-        {
-            if(typeof responseText === 'function')
-            {
-                responseText = response.text();
-            }
-            else{
-                throw new Error('Could not extract text from AI response');
-            }
-        }
-        const cleanedJson=responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsedData=JSON.parse(cleanedJson);
-        res.status(200).json(parsedData);
+    const response = await ai.models.generateContent({
+      model: "models/gemini-2.0-flash-001",
+      contents: prompt,
+    });
+    const responseText = response.text;
+    if (typeof responseText !== 'string') {
+      if (typeof responseText === 'function') {
+        responseText = response.text();
+      }
+      else {
+        throw new Error('Could not extract text from AI response');
+      }
     }
+    const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsedData = JSON.parse(cleanedJson);
+    res.status(200).json(parsedData);
+  }
   catch (error) {
     console.error("Error parsing invoice with AI", error);
     res.status(500).json({
@@ -62,20 +60,18 @@ const parseInvoiceFromText = async (req, res) => {
 
 const generateReminderEmail = async (req, res) => {
 
-    const { invoiceId } = req.body;
-    if(!invoiceId)
-    {
-        return res.status(400).json({message:"Invoice ID is required"});
-    }
+  const { invoiceId } = req.body;
+  if (!invoiceId) {
+    return res.status(400).json({ message: "Invoice ID is required" });
+  }
 
   try {
     const invoice = await Invoice.findById(invoiceId);
-    if(!invoice)
-    {
-        return res.status(404).json({ message: "Invoice not found"});
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found" });
     }
 
-    const prompt=`You are a polite and professional accounting assistant. Write a friendly reminder email to a client about an overdue or an upcoming invoice payment
+    const prompt = `You are a polite and professional accounting assistant. Write a friendly reminder email to a client about an overdue or an upcoming invoice payment
     
     Use the following details to personalize the email:
     - Client Name:${invoice.billTo.clientName}
@@ -87,10 +83,10 @@ const generateReminderEmail = async (req, res) => {
     `
 
     const response = await ai.models.generateContent({
-        model:"models/gemini-2.0-flash-001",
-        contents: prompt,
+      model: "models/gemini-2.0-flash-001",
+      contents: prompt,
     });
-    
+
     res.status(200).json({ reminderText: response.text });
   } catch (error) {
     console.error("Error generating reminder emails with AI", error);
@@ -103,26 +99,25 @@ const generateReminderEmail = async (req, res) => {
 
 const getDashboardSummary = async (req, res) => {
   try {
-    const invoices= await Invoice.find({ user: req.user.id });
-    if(invoices.length ===0)
-    {
-        return res.status(200).json({ insights:["No invoice data to generate insights"] });
+    const invoices = await Invoice.find({ user: req.user.id });
+    if (invoices.length === 0) {
+      return res.status(200).json({ insights: ["No invoice data to generate insights"] });
     }
-    const totalInvoices=invoices.length;
-    const paidInvoices= invoices.filter(inv => inv.status==='Paid');
-    const unpaidInvoices=invoices.filter(inv => inv.status!=='Paid');
-    const totalRevenue=paidInvoices.reduce((acc,inv)=> acc + inv.total,0);
-    const totalOutstanding=unpaidInvoices.reduce((acc,inv)=> acc + inv.total,0);
+    const totalInvoices = invoices.length;
+    const paidInvoices = invoices.filter(inv => inv.status === 'Paid');
+    const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid');
+    const totalRevenue = paidInvoices.reduce((acc, inv) => acc + inv.total, 0);
+    const totalOutstanding = unpaidInvoices.reduce((acc, inv) => acc + inv.total, 0);
 
-    const dataSummary=`
+    const dataSummary = `
     - Total number of invoices: ${totalInvoices}
-    - Total paid invoices: ${paidInvoices}
-    - Total unpaid/pending invoices: ${unpaidInvoices}
+    - Total paid invoices: ${paidInvoices.length}
+    - Total unpaid/pending invoices: ${unpaidInvoices.length}
     - Total revenue from paid invoices: ${totalRevenue}
     - Total outstanding amount from unpaid/pending invoices: ${totalOutstanding}
-    - Recent invoices (last 5): ${invoices.slice(0,5).map(inv =>`Invoice #${inv.invoiceNumber} for ${inv.total.toFixed(2)} with status ${inv.status}`).join(', ')}`;
+    - Recent invoices (last 5): ${invoices.slice(0, 5).map(inv => `Invoice #${inv.invoiceNumber} for ${inv.total.toFixed(2)} with status ${inv.status}`).join(', ')}`;
 
-    const prompt=`You are a friendly and insightful financial analyst for a small business owner.
+    const prompt = `You are a friendly and insightful financial analyst for a small business owner.
     Based on the following summary of their invoice data, provide 2-3 concise and actionable insights.
     Each insight should be a short string in JSON array.
     The insights should be encouraging and helpful. Do not just repeat the data.
@@ -135,18 +130,46 @@ const getDashboardSummary = async (req, res) => {
     Example format: {"insights":["Your revenue is looking strong this month!","You have 5 overdue invoices. Consider sending friendly to get paid faster."]}`;
 
     const response = await ai.models.generateContent({
-        model:"models/gemini-2.0-flash-001",
-        contents: prompt,
+      model: "models/gemini-2.0-flash-001",
+      contents: prompt,
     });
 
-    const responseText=response.text;
-    const cleanedJson=responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsedData=JSON.parse(cleanedJson);
+    let responseText = response.text;
+    if (typeof responseText !== 'string') {
+      if (typeof responseText === 'function') {
+        responseText = response.text();
+      } else {
+        throw new Error('Could not extract text from AI response');
+      }
+    }
+
+    // Safely parse JSON from the text
+    let parsedData = { insights: [] };
+    try {
+      const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsedData = JSON.parse(cleanedJson);
+      if (!parsedData.insights) parsedData.insights = [];
+    } catch (parseError) {
+      console.error("Error parsing JSON from AI:", responseText);
+      parsedData.insights = ["We couldn't generate insights at this moment. Please try again later."];
+    }
 
     res.status(200).json(parsedData);
 
   } catch (error) {
-    console.error("Error generating dashboard summary with AI", error);
+    console.error("Error generating dashboard summary with AI:", error.message || error);
+
+    // Check if it's a quota/rate limit error
+    if (error.message && (error.message.includes('429') || error.message.includes('quota'))) {
+      return res.status(200).json({
+        insights: [
+          "AI insights are temporarily unavailable due to API rate limits.",
+          "Please check your Google Gemini API quota or try again later.",
+          "Your dashboard data is still safe and accurate!"
+        ]
+      });
+    }
+
     res.status(500).json({
       message: "Failed to parse invoice data from text.",
       details: error.message,
