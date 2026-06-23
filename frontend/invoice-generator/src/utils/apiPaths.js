@@ -1,4 +1,11 @@
+console.log('🔍 [apiPaths] Loading apiPaths.js...');
+
 export const BASE_URL = "https://aiinvoicegen.onrender.com/";
+
+console.log('🔍 [apiPaths] BASE_URL set to:', BASE_URL);
+console.log('🔍 [apiPaths] BASE_URL type:', typeof BASE_URL);
+console.log('🔍 [apiPaths] Is it localhost?', BASE_URL.includes('localhost'));
+
 export const API_PATHS = {
     AUTH: {
         REGISTER: "/api/auth/register",
@@ -19,3 +26,6 @@ export const API_PATHS = {
         GET_DASHBOARD_SUMMARY: '/api/ai/dashboard-summary'
     }
 };
+
+console.log('🔍 [apiPaths] API_PATHS.AUTH.LOGIN:', API_PATHS.AUTH.LOGIN);
+console.log('✅ [apiPaths] apiPaths.js loaded successfully');
